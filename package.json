@@ -4,11 +4,12 @@
   "description": "Bitcoin asset module for WDK",
   "main": "index.js",
   "dependencies": {
+    "@bitcoinerlab/secp256k1": "github:rbndg/noble-bitcoinjs-secp256k1",
     "bip32": "4.0.0",
     "bip39": "3.1.0",
     "bitcoinjs-lib": "6.1.5",
     "ecpair": "2.1.0",
-    "lib-wallet": "github:tetherto/lib-wallet#v0.0.1",
+    "lib-wallet": "github:rbndg/lib-wallet-main#export-wallet",
     "lib-wallet-store": "github:tetherto/lib-wallet-store#v0.0.1",
     "tiny-secp256k1": "2.2.3",
     "wallet-seed-bip39": "github:tetherto/lib-wallet-seed-bip39#v0.0.1"
@@ -37,7 +38,7 @@
     "url": "https://github.com/tetherto/lib-wallet-pay-btc/issues"
   },
   "homepage": "https://github.com/tetherto/lib-wallet-pay-btc.git",
-  "standard" : {
+  "standard": {
     "ignore": [
       "/test/*.js"
     ]

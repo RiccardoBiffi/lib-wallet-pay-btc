@@ -15,10 +15,11 @@
 'use strict'
 let bip32
 const bitcoin = require('bitcoinjs-lib')
+const { BIP32Factory } = require('bip32')
+
+let ecc = require('@bitcoinerlab/secp256k1')
 
 async function loadWASM () {
-  const { BIP32Factory } = require('bip32')
-  let ecc = require('tiny-secp256k1')
   ecc = await ecc
   bip32 = BIP32Factory(ecc)
 }
