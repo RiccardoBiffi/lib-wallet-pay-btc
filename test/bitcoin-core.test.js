@@ -14,32 +14,32 @@
 //
 const test = require('brittle')
 const { WalletStoreMemory } = require('lib-wallet-store')
-const { newElectrum } = require('./test-helpers.js')
+const { newBitcoinCore } = require('./test-helpers.js')
 
-test('Electrum', async function (t) {
+test('Bitcoin Core', async function (t) {
   const methods = [
     {
-      method: 'blockchain.transaction.get',
-      params: ['6582163ade13c12914035e78dde5682ef23bd369b488a3af38951faae5e8952f', true],
-      expected: [
-        '6582163ade13c12914035e78dde5682ef23bd369b488a3af38951faae5e8952f',
-        'txid'
-      ]
+      method: 'getblockchaininfo',
+      params: [],
+      expected: [{
+        "chain": "regtest"
+      }]
     }
   ]
 
-  t.test('Electrum methods', async function (t) {
-    const e = await newElectrum({
+  t.test('Bitcoin Core methods', async function (t) {
+    const bc = await newBitcoinCore({
       store: new WalletStoreMemory({})
     })
-    const res = await e.ping()
+    const res = await bc.ping()
     t.ok(res === 'pong', 'ping')
 
     await Promise.all(methods.map(async function (m) {
-      const res = await e.rpc(m.method, m.params)
+      console.log("Test:", m.method)
+      const res = await bc.rpc(m.method, m.params)
       console.log(res)
-      t.ok(res[m.expected[1]] === m.expected[0], m.method)
+      t.ok(res.chain === m.expected[0].chain, m.method)
     }))
-    await e.close()
+    await bc.close()
   })
 })

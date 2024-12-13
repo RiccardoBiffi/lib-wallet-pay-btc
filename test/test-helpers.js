@@ -3,23 +3,40 @@ const { WalletStoreHyperbee } = require('lib-wallet-store')
 const KeyManager = require('../src/wallet-key-btc.js')
 const BIP39Seed = require('wallet-seed-bip39')
 const Electrum = require('../src/electrum.js')
+const BitcoinCore = require('../src/bitcoin-core.js')
 const { bitcoin } = require('../../wallet-lib-test-tools/')
 const BitcoinCurr = require('../src/currency')
 const fs = require('fs')
 const testconf = require('./test-conf.json')
 
 async function newElectrum (config = {}) {
-  config.host = testconf.electrum_host || 'localhost' || config.host
-  config.port = testconf.electrum_port || '8001' || config.port
+  config.host = testconf.electrum.host || 'localhost' || config.host
+  config.port = testconf.electrum.port || '8001' || config.port
   config.store = config.store || newStore()
   let e
   try {
     e = new Electrum(config)
     await e.connect()
   } catch (err) {
-    console.log('Error connecting to electrum', err)
+    console.log('Error connecting to Electrum:', err)
   }
   return e
+}
+
+async function newBitcoinCore (config = {}) {
+  config.host = testconf.bitcoinCore.host || 'localhost' || config.host
+  config.port = testconf.bitcoinCore.port || '18443' || config.port
+  config.user = testconf.bitcoinCore.user || 'bitcoin' || config.user
+  config.pass = testconf.bitcoinCore.pass || 'local321' || config.pass
+  config.store = config.store || newStore()
+  let bc
+  try {
+    bc = new BitcoinCore(config)
+    await bc.connect()
+  } catch (err) {
+    console.log('Error connecting to Bitcoin Core:', err)
+  }
+  return bc
 }
 
 const _datadir = './test-store'
@@ -111,6 +128,7 @@ module.exports = {
   BIP39Seed,
   Electrum,
   newElectrum,
+  newBitcoinCore,
   activeWallet,
   regtestNode,
   pause,
