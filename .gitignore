@@ -8,6 +8,8 @@ build/Release
 # Dependency directories
 node_modules/
 
+# Dependency versions
+package-lock.json
 
 # Optional npm cache directory
 .npm
