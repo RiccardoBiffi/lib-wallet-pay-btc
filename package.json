@@ -26,6 +26,9 @@
     "test:send-tx": "brittle ./test/transactions.test.js",
     "test:pay": "brittle ./test/wallet-pay-btc.test.js",
     "test:key": "brittle ./test/wallet-key-btc.test.js",
+    "test:balance": "brittle ./test/balance.test.js",
+    "test:electrum": "brittle ./test/electrum.test.js",
+    "test:bitcoin-core": "brittle ./test/bitcoin-core.test.js",
     "test:currency": "brittle ./test/currency.test.js"
   },
   "repository": {
