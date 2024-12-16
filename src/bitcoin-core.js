@@ -18,7 +18,7 @@ const Bitcoin = require('./currency')
 
 // TODO: handle unsupported Bitcoin Core RPC methods
 //
-function getBlockReward (height) {
+function getBlockReward(height) {
   const initialReward = Bitcoin.BN(50).times(100000000) // 50 BTC in satoshis
   const halvingInterval = 210000
   const halvings = Math.floor(height / halvingInterval)
@@ -37,7 +37,7 @@ function getBlockReward (height) {
 * @param {Number} config.cache_size - cache size
 **/
 class RequestCache {
-  constructor (config) {
+  constructor(config) {
     this.store = config.store
     this._cache_expiry = config.cache_timeout || 300000 // 5min
     this._max_cache_size = config.max_cache_size || 10000
@@ -45,16 +45,16 @@ class RequestCache {
     this._closing = false
   }
 
-  async clear () {
+  async clear() {
     return this.store.clear()
   }
 
-  async stop () {
+  async stop() {
     clearInterval(this._timer)
     return this.store.close()
   }
 
-  _startCacheTimer () {
+  _startCacheTimer() {
     this._timer = setInterval(() => {
       this.store.entries(async (k, [value, exp]) => {
         if (Date.now() >= exp) return await this.store.delete(k)
@@ -62,18 +62,18 @@ class RequestCache {
     }, this._cache_interval)
   }
 
-  async _getCacheIndex () {
+  async _getCacheIndex() {
     return await (this.store.get('cache_index')) || []
   }
 
-  async _removeOldest () {
+  async _removeOldest() {
     const index = await this._getCacheIndex()
     const key = index.shift()
     await this.store.delete(key)
     await this.store.put('cache_index', index)
   }
 
-  async set (key, value) {
+  async set(key, value) {
     let data
     if (this._cache_size >= this._max_session_size) {
       await this._removeOldest()
@@ -90,22 +90,22 @@ class RequestCache {
     return this.store.put(key, data)
   }
 
-  async get (key) {
+  async get(key) {
     const data = await this.store.get(key)
     return data ? data[0] : null
   }
 
-  get size () {
+  get size() {
     return this._cache_size
   }
 
-  set size (val) {
+  set size(val) {
     return null
   }
 }
 
 class BitcoinCore extends EventEmitter {
-  constructor (config = {}) {
+  constructor(config = {}) {
     super()
     this._subscribe()
     this._host = config.host || '127.0.0.1'
@@ -133,7 +133,7 @@ class BitcoinCore extends EventEmitter {
     1: 'standard'
   }
 
-  _subscribe () {
+  _subscribe() {
     this.on('blockchain.headers.subscribe', (height) => {
       this.block_height = height.height
       this.emit('new-block', height)
@@ -149,11 +149,11 @@ class BitcoinCore extends EventEmitter {
   * @param {Object} opts - options
   * @param {Boolean} opts.reconnect - reconnect if connection is lost.
   **/
-  connect (opts = {}) {
+  connect(opts = {}) {
     if (opts.reconnect) this._reconnect_count = 0
     return new Promise((resolve, reject) => {
       this._client = this._net.connect(this._port, this._host, () => {
-        console.log('Connected to bitcoind');
+        console.log('Connected to Bitcoin Core');
         this.clientState = 1
         this._reconnect_count = 0
         resolve()
@@ -177,11 +177,13 @@ class BitcoinCore extends EventEmitter {
     })
   }
 
-  async _reconn (resolve, reject, err = {}) {
+  async _reconn(resolve, reject, err = {}) {
     const errMsg = err.message || err.errors?.map(e => e.message).join(' ')
-    if (this._reconnect_count >= this._max_attempt) return reject(new Error('gave up connecting to BitcoinCore ' + errMsg))
+    if (this._reconnect_count >= this._max_attempt)
+      return reject(new Error('gave up connecting to Bitcoin Core ' + errMsg))
     setTimeout(async () => {
-      if (this._reconnect_count >= this._max_attempt) return reject(new Error('gave up connecting to BitcoinCore ' + errMsg))
+      if (this._reconnect_count >= this._max_attempt)
+        return reject(new Error('gave up connecting to Bitcoin Core ' + errMsg))
       this._reconnect_count++
       try {
         await this.connect()
@@ -194,7 +196,7 @@ class BitcoinCore extends EventEmitter {
     }, this._reconnect_interval)
   }
 
-  _rpcPayload (method, params, id) {
+  _rpcPayload(method, params, id) {
     return JSON.stringify({
       jsonrpc: '1.0',
       id: id,
@@ -203,7 +205,7 @@ class BitcoinCore extends EventEmitter {
     })
   }
 
-  _httpRequest (payload) {
+  _httpRequest(payload) {
     return (
       `POST / HTTP/1.1\r\n` +
       `Host: ${this._host}\r\n` +
@@ -215,7 +217,7 @@ class BitcoinCore extends EventEmitter {
     )
   }
 
-  _makeRequest (method, params) {
+  _makeRequest(method, params) {
     return new Promise((resolve, reject) => {
       if (this._closed) return reject(new Error('client closed'))
       if (this.clientState !== 1) {
@@ -229,7 +231,7 @@ class BitcoinCore extends EventEmitter {
     })
   }
 
-  _handleResponse (data) {
+  _handleResponse(data) {
     let resp
     try {
       resp = JSON.parse(data.toString())
@@ -254,7 +256,8 @@ class BitcoinCore extends EventEmitter {
       return this.requests.delete(resp.id)
     }
 
-    if (!resolve) return this.emit('request-error', `no handler for response id: ${resp.id} - ${JSON.stringify(resp)}`)
+    if (!resolve)
+      return this.emit('request-error', `no handler for response id: ${resp.id} - ${JSON.stringify(resp)}`)
 
     const isNull = resp.result === null
 
@@ -262,7 +265,7 @@ class BitcoinCore extends EventEmitter {
     this.requests.delete(resp.id)
   }
 
-  async getAddressHistory (opts, scriptHash) {
+  async getAddressHistory(opts, scriptHash) {
     const history = await this._makeRequest('blockchain.scripthash.get_history', [scriptHash])
     const txData = []
     for (const index in history) {
@@ -273,19 +276,19 @@ class BitcoinCore extends EventEmitter {
     return txData
   }
 
-  _getTransaction (txid) {
+  _getTransaction(txid) {
     return this._makeRequest('blockchain.transaction.get', [txid, true])
   }
 
-  _getBalance (scriptHash) {
+  _getBalance(scriptHash) {
     return this._makeRequest('blockchain.scripthash.get_balance', [scriptHash])
   }
 
-  async broadcastTransaction (tx) {
+  async broadcastTransaction(tx) {
     return this._makeRequest('blockchain.transaction.broadcast', [tx])
   }
 
-  _processTxVout (vout, tx) {
+  _processTxVout(vout, tx) {
     return {
       address: this._getTxAddress(vout.scriptPubKey),
       value: new Bitcoin(vout.value, 'main'),
@@ -296,7 +299,7 @@ class BitcoinCore extends EventEmitter {
     }
   }
 
-  _procTxHeight (tx) {
+  _procTxHeight(tx) {
     if (!tx.confirmations) {
       tx.height = 0
     } else {
@@ -305,7 +308,7 @@ class BitcoinCore extends EventEmitter {
     return tx
   }
 
-  async _txGet (txid, opts) {
+  async _txGet(txid, opts) {
     const cache = this.cache
 
     if (opts.cache === false) {
@@ -327,7 +330,7 @@ class BitcoinCore extends EventEmitter {
   /**
   * @description get transaction details. Store tx in cache.
   */
-  async getTransaction (txid, opts = {}) {
+  async getTransaction(txid, opts = {}) {
     const data = {
       txid,
       out: [],
@@ -388,26 +391,26 @@ class BitcoinCore extends EventEmitter {
     return data
   }
 
-  _getTxAddress (scriptPubKey) {
+  _getTxAddress(scriptPubKey) {
     if (scriptPubKey.address) return scriptPubKey.address
     // if (scriptPubKey.addresses) return scriptPubKey.addresses
     // Non standard outputs like OP_RETURN, multi-sig
     return null
   }
 
-  async subscribeToBlocks () {
+  async subscribeToBlocks() {
     const height = await this._makeRequest('blockchain.headers.subscribe', [])
     this.block_height = height.height
     this.emit('new-block', height)
   }
 
-  async close () {
+  async close() {
     this._closed = true
     await this._stopClient()
     await this.cache.stop()
   }
 
-  _stopClient () {
+  _stopClient() {
     return new Promise((resolve) => {
       this.removeAllListeners()
       this.clientState = 0
@@ -417,24 +420,24 @@ class BitcoinCore extends EventEmitter {
     })
   }
 
-  rpc (method, params) {
+  rpc(method, params) {
     return this._makeRequest(method, params)
   }
 
-  async ping (opts) {
+  async ping(opts) {
     const res = await this._makeRequest('ping', [])
     if (!res) return 'pong'
     throw new Error('ping failed')
   }
 
-  async subscribeToAddress (scriptHash) {
+  async subscribeToAddress(scriptHash) {
     return this._makeRequest('blockchain.scripthash.subscribe', [scriptHash])
   }
 
-  async unsubscribeFromAddress (scriptHash) {
+  async unsubscribeFromAddress(scriptHash) {
   }
 
-  isConnected () {
+  isConnected() {
     return this.clientState === 1
   }
 }
