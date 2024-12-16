@@ -9,9 +9,9 @@ const BitcoinCurr = require('../src/currency')
 const fs = require('fs')
 const testconf = require('./test-conf.json')
 
-async function newElectrum (config = {}) {
-  config.host = testconf.electrum.host || 'localhost' || config.host
-  config.port = testconf.electrum.port || '8001' || config.port
+async function electrumConnect(config = {}) {
+  config.host = testconf.electrum.host || 'localhost'
+  config.port = testconf.electrum.port || '8001'
   config.store = config.store || newStore()
   let e
   try {
@@ -23,11 +23,12 @@ async function newElectrum (config = {}) {
   return e
 }
 
-async function newBitcoinCore (config = {}) {
-  config.host = testconf.bitcoinCore.host || 'localhost' || config.host
-  config.port = testconf.bitcoinCore.port || '18443' || config.port
-  config.user = testconf.bitcoinCore.user || 'bitcoin' || config.user
-  config.pass = testconf.bitcoinCore.pass || 'local321' || config.pass
+async function bitcoinCoreConnect(config = {}) {
+  config.host = testconf.bitcoinCore.host || 'localhost'
+  config.port = testconf.bitcoinCore.port || '18443'
+  config.user = testconf.bitcoinCore.user || 'bitcoin'
+  config.pass = testconf.bitcoinCore.pass || 'local321'
+  config.wallet = testconf.bitcoinCore.wallet || 'main.dat'
   config.store = config.store || newStore()
   let bc
   try {
@@ -40,14 +41,14 @@ async function newBitcoinCore (config = {}) {
 }
 
 const _datadir = './test-store'
-function newStore (tmpStore) {
+function newStore(tmpStore) {
   return tmpStore
     ? new WalletStoreHyperbee({ store_path: _datadir })
     : new WalletStoreHyperbee()
 }
 
 let _regtest
-async function regtestNode (opts = {}) {
+async function regtestNode(opts = {}) {
   if (_regtest) return _regtest
   _regtest = new bitcoin.BitcoinCore({})
   await _regtest.init()
@@ -64,7 +65,7 @@ async function regtestNode (opts = {}) {
   * @param {boolean} config.tmpStore generate a temporary file store
   * @return {Promise<BitcoinPay>}
 */
-async function activeWallet (config = {}) {
+async function activeWallet(config = {}) {
   const _store = newStore()
   let seed
   const phrase = 'sell clock better horn digital prevent image toward sort first voyage detail inner regular improve'
@@ -85,7 +86,7 @@ async function activeWallet (config = {}) {
   await km.init()
   const btcPay = new BitcoinPay({
     asset_name: 'btc',
-    provider: await newElectrum({ store }),
+    provider: await electrumConnect({ store }),
     key_manager: km,
     store,
     network: 'regtest'
@@ -95,7 +96,7 @@ async function activeWallet (config = {}) {
   return btcPay
 }
 
-async function pause (ms) {
+async function pause(ms) {
   console.log('Pausing.... ' + ms + 'ms')
   return new Promise((resolve) => {
     setTimeout(() => {
@@ -104,7 +105,7 @@ async function pause (ms) {
   })
 }
 
-function promiseSteps (arr) {
+function promiseSteps(arr) {
   const pass = {}
   for (const state of arr) {
     pass[state] = {}
@@ -116,7 +117,7 @@ function promiseSteps (arr) {
   return pass
 }
 
-async function rmDataDir () {
+async function rmDataDir() {
   fs.rmSync(_datadir, { recursive: true, force: true })
 }
 
@@ -127,8 +128,8 @@ module.exports = {
   KeyManager,
   BIP39Seed,
   Electrum,
-  newElectrum,
-  newBitcoinCore,
+  electrumConnect,
+  bitcoinCoreConnect,
   activeWallet,
   regtestNode,
   pause,
