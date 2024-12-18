@@ -277,8 +277,14 @@ class BitcoinCore extends EventEmitter {
     return this._makeRequest('gettransaction', [txid, true, true])
   }
 
-  _getBalance(scriptHash) {
-    return this._makeRequest('blockchain.scripthash.get_balance', [scriptHash])
+  //todo change input to scripthash
+  async getBalance(address) {
+    const confirmed = await this._makeRequest('getreceivedbyaddress', [address, 1])
+    const unconfirmed = await this._makeRequest('getreceivedbyaddress', [address, 0])
+    return {
+      confirmed: confirmed * 10 ** 8 || 0,
+      unconfirmed: (unconfirmed - confirmed) * 10 ** 8 || 0
+    }
   }
 
   async broadcastTransaction(tx) {
