@@ -29,6 +29,7 @@ async function bitcoinCoreConnect(config = {}) {
   config.user = testconf.bitcoinCore.user || 'bitcoin'
   config.pass = testconf.bitcoinCore.pass || 'local321'
   config.wallet = testconf.bitcoinCore.wallet || 'main.dat'
+  config.zmqPort = testconf.bitcoinCore.zmqPort || '28334'
   config.store = config.store || newStore()
   let bc
   try {
