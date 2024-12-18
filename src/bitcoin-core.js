@@ -274,7 +274,7 @@ class BitcoinCore extends EventEmitter {
   }
 
   _getTransaction(txid) {
-    return this._makeRequest('blockchain.transaction.get', [txid, true])
+    return this._makeRequest('gettransaction', [txid, true, true])
   }
 
   _getBalance(scriptHash) {
@@ -341,7 +341,7 @@ class BitcoinCore extends EventEmitter {
     data.height = tx.height
 
     let totalOut = new Bitcoin(0, 'main')
-    data.out = tx.vout.map((vout) => {
+    data.out = tx.decoded.vout.map((vout) => {
       const newvout = this._processTxVout(vout, tx)
       if (!newvout || !newvout.address) {
         data.std_out.push(false)
@@ -354,7 +354,7 @@ class BitcoinCore extends EventEmitter {
     }).filter(Boolean)
 
     let totalIn = new Bitcoin(0, 'main')
-    data.in = await Promise.all(tx.vin.map(async (vin) => {
+    data.in = await Promise.all(tx.decoded.vin.map(async (vin) => {
       if (vin.coinbase) {
         const value = getBlockReward(tx.height - 1)
         data.std_in.push(false)
@@ -370,7 +370,7 @@ class BitcoinCore extends EventEmitter {
       }
       data.std_in.push(false)
       const txDetail = await this._txGet(vin.txid, opts)
-      const newvin = this._processTxVout(txDetail.vout[vin.vout], tx)
+      const newvin = this._processTxVout(txDetail.decoded.vout[vin.vout], tx)
       newvin.prev_txid = vin.txid
       newvin.prev_index = vin.vout
       newvin.prev_tx_height = txDetail.height
