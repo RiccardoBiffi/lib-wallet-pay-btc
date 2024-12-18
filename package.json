@@ -12,7 +12,8 @@
     "lib-wallet": "github:rbndg/lib-wallet-main#export-wallet",
     "lib-wallet-store": "github:tetherto/lib-wallet-store#v0.0.1",
     "tiny-secp256k1": "2.2.3",
-    "wallet-seed-bip39": "github:tetherto/lib-wallet-seed-bip39#v0.0.1"
+    "wallet-seed-bip39": "github:tetherto/lib-wallet-seed-bip39#v0.0.1",
+    "zeromq": "^6.1.2"
   },
   "devDependencies": {
     "brittle": "^3.5.0",
