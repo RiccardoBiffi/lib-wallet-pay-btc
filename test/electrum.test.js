@@ -49,8 +49,10 @@ test('Electrum subscribes and unsubscribes to blocks', async t => {
   await new Promise((resolve, reject) => {
     electrum.once('new-block', async (height) => {
       try {
-        t.plan(2)
+        t.plan(3)
         t.pass('Should receive new block notification')
+        const info = await bc.getBlockchainInfo()
+        t.is(height.height, info.result.blocks, 'Should receive the correct block height')
         const result = await electrum.unsubscribeToBlocks()
         t.ok(result, 'Should unsubscribe from blocks notifications')
         resolve();
