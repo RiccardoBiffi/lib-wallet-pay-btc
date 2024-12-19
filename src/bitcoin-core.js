@@ -262,12 +262,13 @@ class BitcoinCore extends EventEmitter {
     this.requests.delete(resp.id)
   }
 
-  async getAddressHistory(opts, scriptHash) {
-    const history = await this._makeRequest('blockchain.scripthash.get_history', [scriptHash])
+  //todo change address to scripthash
+  async getAddressHistory(opts, address) {
+    const receivedTx = await this._makeRequest('listreceivedbyaddress', [0, false, true, address])
+    const history = receivedTx[0].txids
     const txData = []
-    for (const index in history) {
-      const tx = history[index]
-      const td = await this.getTransaction(tx.tx_hash, opts)
+    for (const i in history) {
+      const td = await this.getTransaction(history[i], opts)
       txData.push(td)
     }
     return txData
@@ -277,7 +278,7 @@ class BitcoinCore extends EventEmitter {
     return this._makeRequest('gettransaction', [txid, true, true])
   }
 
-  //todo change input to scripthash
+  //todo change address to scripthash
   async getBalance(address) {
     const confirmed = await this._makeRequest('getreceivedbyaddress', [address, 1])
     const unconfirmed = await this._makeRequest('getreceivedbyaddress', [address, 0])
@@ -288,7 +289,7 @@ class BitcoinCore extends EventEmitter {
   }
 
   async broadcastTransaction(tx) {
-    return this._makeRequest('blockchain.transaction.broadcast', [tx])
+    return this._makeRequest('sendrawtransaction', [tx])
   }
 
   _processTxVout(vout, tx) {
