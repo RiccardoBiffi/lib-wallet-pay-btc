@@ -117,11 +117,12 @@ class BitcoinCore extends EventEmitter {
     this._wallet = config.wallet || 'main.dat'
 
     this._zmqPort = config.zmqPort || 28334
-    this._sock = new zmq.Subscriber()
-    this._is_sock_blockhash = false
-    this._is_sock_raw_tx = false
+    this._socket = null
+    this._is_socket_open = false
+    this._is_socket_blockhash = false
+    this._is_socket_raw_tx = false
+    this._internal_event = new EventEmitter();
     this._address_subscriptions = []
-    //this._node_uri = `http://${this._user}:${this._pass}@${this._host}:${this._port}/wallet/${this._wallet}` 
 
     this._net = config.net || require('net')
     this.clientState = 0
@@ -403,39 +404,24 @@ class BitcoinCore extends EventEmitter {
   }
 
   async subscribeToBlocks() {
-    if (this._is_sock_blockhash) return
+    if (!this._is_socket_open)
+      this._startSocket()
 
-    this._sock.connect(`tcp://${this._host}:${this._zmqPort}`)
-    this._sock.subscribe("hashblock")
-    this._is_sock_blockhash = true;
+    this._socket.subscribe("hashblock")
+    this._is_socket_blockhash = true;
+    this._internal_event.on("hashblock", this._handleBlockEvent)
+  }
 
-    (async () => {
-      try {
-        //todo find a way to stop the loop without waiting for a new message
-        for await (const [topic, message] of this._sock) {
-          if (!this._is_sock_blockhash) break
-          const topicStr = topic.toString();
-          const messageHex = message.toString("hex");
-
-          if (topicStr === "hashblock") {
-            const rawBlock = await this.rpc('getblock', [messageHex, 0])
-            const block = await this.rpc('getblock', [messageHex, 1])
-            this.emit('new-block', { height: block.height, hex: rawBlock })
-          }
-        }
-      }
-      catch (err) {
-        console.error("Error in listener loop:", err);
-      } finally {
-        this._sock.unsubscribe("hashblock")
-        if (!this._is_sock_raw_tx)
-          this._sock.close();
-      }
-    })()
+  _handleBlockEvent = async (message) => {
+    const messageHex = message.toString("hex");
+    const rawBlock = await this.rpc('getblock', [messageHex, 0])
+    const block = await this.rpc('getblock', [messageHex, 1])
+    this.emit('new-block', { height: block.height, hex: rawBlock })
   }
 
   async unsubscribeFromBlocks() {
-    this._is_sock_blockhash = false
+    this._is_socket_blockhash = false
+    this._internal_event.off("hashblock", this._handleBlockEvent)
     return true
   }
 
@@ -465,51 +451,66 @@ class BitcoinCore extends EventEmitter {
     throw new Error('ping failed')
   }
 
-  //todo change input to scripthash
-  async subscribeToAddress(address) {
-    if (this._is_sock_raw_tx) {
-      this._address_subscriptions.push(address)
-      return
-    }
-
-    this._sock.connect(`tcp://${this._host}:${this._zmqPort}`)
-    this._sock.subscribe("rawtx")
-    this._is_sock_raw_tx = true;
-
+  _startSocket() {
+    this._socket = new zmq.Subscriber()
+    this._socket.connect(`tcp://${this._host}:${this._zmqPort}`);
+    this._is_socket_open = true;
     (async () => {
       try {
         //todo find a way to stop the loop without waiting for a new message
-        for await (const [topic, message] of this._sock) {
-          if (!this._is_sock_raw_tx) break
+        for await (const [topic, message] of this._socket) {
+          if (!this._isSocketUsed()) break
           const topicStr = topic.toString();
           const messageHex = message.toString("hex");
 
-          if (topicStr === "rawtx") {
-            // decodifica la transazione
-            const tx = await this.rpc('decoderawtransaction', [messageHex])
-            const addressUtxo = tx.vout.filter(async (out) => this._address_subscriptions.includes(out.scriptPubKey.address))
-            if (addressUtxo.length) {
-              //todo calculate and emit transaction status
-              this.emit('new-tx', tx)
-            }
-          }
+          this._internal_event.emit(topicStr, messageHex)
         }
       }
       catch (err) {
         console.error("Error in listener loop:", err);
       } finally {
-        this._sock.unsubscribe("rawtx")
-        if (!this._is_sock_blockhash)
-          this._sock.close();
+        this._socket.close()
+        this._is_socket_open = false
       }
     })();
+  }
+
+  _isSocketUsed() {
+    return this._is_socket_blockhash || this._is_socket_raw_tx
+  }
+
+  //todo change input to scripthash
+  async subscribeToAddress(address) {
+    if (!this._is_socket_open)
+      this._startSocket()
+
+    this._address_subscriptions.push(address)
+    if (this._address_subscriptions.length > 1) {
+      return
+    }
+
+    this._socket.subscribe("rawtx")
+    this._is_socket_raw_tx = true
+    this._internal_event.on("rawtx", this._handleTxEvent)
+  }
+
+  _handleTxEvent = async (message) => {
+    const messageHex = message.toString("hex")
+    const tx = await this.rpc('decoderawtransaction', [messageHex])
+    const addressUtxo = tx.vout.filter(async (out) => this._address_subscriptions.includes(out.scriptPubKey.address))
+    if (addressUtxo.length) {
+      //todo calculate and emit transaction status
+      this.emit('new-tx', tx)
+    }
   }
 
   //todo change input to scripthash
   async unsubscribeFromAddress(address) {
     this._address_subscriptions = this._address_subscriptions.filter(a => a !== address)
-    if (this._address_subscriptions.length === 0)
-      this._is_sock_raw_tx = false
+    if (this._address_subscriptions.length === 0) {
+      this._is_socket_raw_tx = false
+      this._internal_event.off("rawtx", this._handleTxEvent)
+    }
     return true
   }
 

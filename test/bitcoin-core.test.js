@@ -154,7 +154,7 @@ test('Bitcoin Core getAddressHistory returns transactions', async t => {
 })
 
 
-solo('Bitcoin Core broadcastTransaction successfully', async t => {
+test('Bitcoin Core broadcastTransaction successfully', async t => {
   const utxoList = await bc.listUnspent({})
   const { txid, vout, amount } = utxoList.result[0]
   const to = await bc.getNewAddress()
