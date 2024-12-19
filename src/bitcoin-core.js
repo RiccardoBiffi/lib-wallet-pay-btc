@@ -434,7 +434,7 @@ class BitcoinCore extends EventEmitter {
     })()
   }
 
-  async unsubscribeToBlocks() {
+  async unsubscribeFromBlocks() {
     this._is_sock_blockhash = false
     return true
   }
@@ -506,7 +506,7 @@ class BitcoinCore extends EventEmitter {
   }
 
   //todo change input to scripthash
-  async unsubscribeToAddress(address) {
+  async unsubscribeFromAddress(address) {
     this._address_subscriptions = this._address_subscriptions.filter(a => a !== address)
     if (this._address_subscriptions.length === 0)
       this._is_sock_raw_tx = false

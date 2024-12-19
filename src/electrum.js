@@ -381,7 +381,7 @@ class Electrum extends EventEmitter {
     this.emit('new-block', height)
   }
 
-  async unsubscribeToBlocks() {
+  async unsubscribeFromBlocks() {
     return this._makeRequest('blockchain.headers.unsubscribe', [])
   }
 
