@@ -188,7 +188,7 @@ test('getTransactions', async (t) => {
       t.end()
     }
   })
-  if(!c) t.fail('no tx found')
+  if (!c) t.fail('no tx found')
 });
 
 (async () => {
@@ -199,7 +199,7 @@ test('getTransactions', async (t) => {
     const btcPay = await activeWallet({ newWallet: true })
     // const max = btcPay._syncManager._max_script_watch
 
-    async function newTx (tx) {
+    async function newTx(tx) {
       t.comment('checking balance transition between confirmed/pending/mempool', state, send)
       for (const key in send) {
         const addr = key
@@ -251,7 +251,7 @@ test('getTransactions', async (t) => {
     await regtest.mine(1)
     await pass.confirmed.promise
 
-    const  totalBalance = await btcPay.getBalance({})
+    const totalBalance = await btcPay.getBalance({})
     t.ok(+totalBalance.consolidated.toMainUnit() === amount, 'total wallet balance matches')
     await btcPay.destroy()
     t.end()
@@ -259,7 +259,7 @@ test('getTransactions', async (t) => {
 })()
 
 test('pauseSync - internal and external', async () => {
-  async function runTest (sType, opts) {
+  async function runTest(sType, opts) {
     const btcPay = await activeWallet()
     const max = opts.max
     test('pauseSync: ' + sType, async (t) => {
@@ -298,7 +298,7 @@ test('pauseSync - internal and external', async () => {
 })
 
 test('syncing paths in order', async () => {
-  async function runTest (sType, opts) {
+  async function runTest(sType, opts) {
     const btcPay = await activeWallet()
     const max = 5
     test('sync in order: ' + sType, async (t) => {
@@ -407,8 +407,8 @@ solo('syncTransaction - balance check', async (t) => {
   t.comment('waiting for electrum to update')
   await btcPay._onNewTx()
   let checked = false
-  async function checkBal (pt, path, hasTx, gapCount) {
-    if(checked) return 
+  async function checkBal(pt, path, hasTx, gapCount) {
+    if (checked) return
     checked = true
     t.ok(path === payAddr.path, 'first path is checked')
     const { hash, addr } = btcPay.keyManager.pathToScriptHash(path, 'p2wpkh')
