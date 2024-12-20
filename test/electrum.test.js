@@ -41,7 +41,6 @@ test('Electrum connected successfully', async t => {
 
 test('Electrum subscribes and unsubscribes to blocks', async t => {
   await electrumProvider.subscribeToBlocks()
-  bc.mine({ blocks: 1 })
 
   await new Promise((resolve, reject) => {
     electrumProvider.once('new-block', async (height) => {
@@ -57,6 +56,8 @@ test('Electrum subscribes and unsubscribes to blocks', async t => {
         reject(err);
       }
     })
+
+    bc.mine({ blocks: 1 })
   })
 })
 
@@ -91,8 +92,12 @@ test('Electrum getTransaction returns transaction details', async t => {
 
   const electrumTx = await electrumProvider.getTransaction(tx.result)
 
-  t.plan(1)
+  t.plan(4)
   t.is(electrumTx.txid, tx.result, 'Should get single transaction')
+  const utxo = electrumTx.out.find(out => out.address === to.result)
+  t.is(utxo.address, to.result, 'Should get to address')
+  t.is(utxo.value.amount, amount.toString(), 'Should get amount')
+  t.exception(electrumProvider.getTransaction('invalid-txid'), 'Should throw error for invalid txid')
 })
 
 
@@ -108,9 +113,10 @@ test('Electrum getBalance returns confirmed and unconfirmed balances', async t =
       try {
         const balance = await electrumProvider.getBalance(scriptHash)
 
-        t.plan(2)
+        t.plan(3)
         t.is(balance.confirmed, 0, 'Confirmed balance should be 0')
         t.is(balance.unconfirmed, amount * 10 ** 8, `Unconfirmed balance should be ${amount}`)
+        t.exception(electrumProvider.getBalance('invalid-scripthash'), 'Should throw error for invalid scripthash')
 
         resolve();
       } catch (err) {
@@ -138,9 +144,19 @@ test('Electrum getAddressHistory returns transactions', async t => {
         const electrumTxs = await electrumProvider.getAddressHistory({}, scriptHash)
         const electrumTxIds = electrumTxs.map(tx => tx.txid)
 
-        t.plan(2)
+        t.plan(7)
         t.ok(electrumTxIds.includes(tx1.result), 'First transaction should be included')
+        const utxo1 = electrumTxs.find(tx => tx.txid === tx1.result)
+          .out.find(out => out.address === to.result)
+        t.is(utxo1.address, to.result, 'Should get to address of first transaction')
+        t.is(utxo1.value.amount, amount.toString(), 'Should get amount of first transaction')
         t.ok(electrumTxIds.includes(tx2.result), 'Second transaction should be included')
+        const utxo2 = electrumTxs.find(tx => tx.txid === tx2.result)
+          .out.find(out => out.address === to.result)
+        t.is(utxo2.address, to.result, 'Should get to address of second transaction')
+        t.is(utxo2.value.amount, amount.toString(), 'Should get amount of second transaction')
+        t.exception(electrumProvider.getAddressHistory({}, 'invalid-scripthash'), 'Should throw error for invalid scripthash')
+
         resolve();
       } catch (err) {
         reject(err);
@@ -155,20 +171,25 @@ test('Electrum getAddressHistory returns transactions', async t => {
 test('Electrum broadcastTransaction successfully', async t => {
   const utxoList = await bc.listUnspent({})
   const { txid, vout, amount } = utxoList.result[0]
+  const amountToSend = (amount - 0.01).toFixed(8)
   const to = await bc.getNewAddress()
   const rawTx = await bc.createRawTransaction(
     {
       inputs: [{ txid: txid, vout: vout }],
-      outputs: { [to.result]: (amount - 0.01).toFixed(8) }
+      outputs: { [to.result]: amountToSend }
     })
   const signedTx = await bc.signRawTransactionWithWallet({ hexstring: rawTx.result })
 
   const tx = await electrumProvider.broadcastTransaction(signedTx.result.hex)
   const txDetails = await electrumProvider.getTransaction(tx)
 
-  t.plan(2)
+  t.plan(5)
   t.ok(tx, 'Signed transaction should be broadcasted')
   t.is(txDetails.txid, tx, 'Should get broadcasted transaction details')
+  const utxo = txDetails.out.find(out => out.address === to.result)
+  t.is(utxo.address, to.result, 'Should get to address of broadcasted transaction')
+  t.is(parseFloat(utxo.value.amount).toFixed(8), amountToSend, 'Should get amount of broadcasted transaction')
+  t.exception(electrumProvider.broadcastTransaction('invalid-tx'), 'Should throw error for invalid tx')
 })
 
 

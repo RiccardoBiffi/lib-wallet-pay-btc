@@ -92,8 +92,12 @@ test('Bitcoin Core getTransaction returns transaction details', async t => {
 
   const bitcoinCoreTx = await bitcoinCoreProvider.getTransaction(tx.result)
 
-  t.plan(1)
+  t.plan(4)
   t.is(bitcoinCoreTx.txid, tx.result, 'Should get single transaction')
+  const utxo = bitcoinCoreTx.out.find(out => out.address === to.result)
+  t.is(utxo.address, to.result, 'Should get to address')
+  t.is(utxo.value.amount, amount.toString(), 'Should get amount')
+  t.exception(bitcoinCoreProvider.getTransaction('invalid-txid'), 'Should throw error for invalid txid')
 })
 
 
@@ -108,9 +112,10 @@ test('Bitcoin Core getBalance returns confirmed and unconfirmed balances', async
       try {
         const balance = await bitcoinCoreProvider.getBalance(to.result)
 
-        t.plan(2)
+        t.plan(3)
         t.is(balance.confirmed, 0, 'Confirmed balance should be 0')
         t.is(balance.unconfirmed, amount * 10 ** 8, `Unconfirmed balance should be ${amount}`)
+        t.exception(bitcoinCoreProvider.getBalance('invalid-address'), 'Should throw error for invalid address')
 
         resolve();
       } catch (err) {
@@ -137,9 +142,19 @@ test('Bitcoin Core getAddressHistory returns transactions', async t => {
         const bitcoinCoreTxs = await bitcoinCoreProvider.getAddressHistory({}, to.result)
         const bitcoinCoreTxIds = bitcoinCoreTxs.map(tx => tx.txid)
 
-        t.plan(2)
+        t.plan(7)
         t.ok(bitcoinCoreTxIds.includes(tx1.result), 'First transaction should be included')
+        const utxo1 = bitcoinCoreTxs.find(tx => tx.txid === tx1.result)
+          .out.find(out => out.address === to.result)
+        t.is(utxo1.address, to.result, 'Should get to address of first transaction')
+        t.is(utxo1.value.amount, amount.toString(), 'Should get amount of first transaction')
         t.ok(bitcoinCoreTxIds.includes(tx2.result), 'Second transaction should be included')
+        const utxo2 = bitcoinCoreTxs.find(tx => tx.txid === tx2.result)
+          .out.find(out => out.address === to.result)
+        t.is(utxo2.address, to.result, 'Should get to address of second transaction')
+        t.is(utxo2.value.amount, amount.toString(), 'Should get amount of second transaction')
+        t.exception(bitcoinCoreProvider.getAddressHistory({}, 'invalid-scripthash'), 'Should throw error for invalid scripthash')
+
         resolve();
       } catch (err) {
         reject(err);
@@ -154,23 +169,27 @@ test('Bitcoin Core getAddressHistory returns transactions', async t => {
 test('Bitcoin Core broadcastTransaction successfully', async t => {
   const utxoList = await bc.listUnspent({})
   const { txid, vout, amount } = utxoList.result[0]
+  const amountToSend = (amount - 0.01).toFixed(8)
   const to = await bc.getNewAddress()
   const rawTx = await bc.createRawTransaction(
     {
       inputs: [{ txid: txid, vout: vout }],
-      outputs: { [to.result]: (amount - 0.01).toFixed(8) }
+      outputs: { [to.result]: amountToSend }
     })
   const signedTx = await bc.signRawTransactionWithWallet({ hexstring: rawTx.result })
 
   const tx = await bitcoinCoreProvider.broadcastTransaction(signedTx.result.hex)
   const txDetails = await bitcoinCoreProvider.getTransaction(tx)
 
-  t.plan(2)
+  t.plan(5)
   t.ok(tx, 'Signed transaction should be broadcasted')
   t.is(txDetails.txid, tx, 'Should get broadcasted transaction details')
+  const utxo = txDetails.out.find(out => out.address === to.result)
+  t.is(utxo.address, to.result, 'Should get to address of broadcasted transaction')
+  t.is(parseFloat(utxo.value.amount).toFixed(8), amountToSend, 'Should get amount of broadcasted transaction')
+  t.exception(bitcoinCoreProvider.broadcastTransaction('invalid-tx'), 'Should throw error for invalid tx')
 })
 
-//todo fix socket concurrency by executing all tests in sequence
 
 hook('Teardown', async t => {
   if (bitcoinCoreProvider.isConnected()) {
