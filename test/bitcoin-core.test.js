@@ -15,14 +15,13 @@
 
 const { test, solo, skip, hook } = require('brittle')
 const { WalletStoreMemory } = require('lib-wallet-store')
-const { bitcoinCoreConnect } = require('./test-helpers.js')
-const { bitcoin } = require('../../wallet-lib-test-tools')
+const { bitcoinCoreConnect, regtestNode } = require('./test-helpers.js')
 
 let bitcoinCoreProvider;
 let bc;
 
 hook('Setup', async t => {
-  bc = new bitcoin.BitcoinCore({})
+  bc = await regtestNode()
   await bc.init()
   const balance = (await bc.getBalance()).result
   if (balance <= 1) {
