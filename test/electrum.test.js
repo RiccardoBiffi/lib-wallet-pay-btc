@@ -16,7 +16,7 @@ const { test, solo, skip, hook } = require('brittle')
 const { WalletStoreMemory } = require('lib-wallet-store')
 const { electrumConnect, regtestNode } = require('./test-helpers.js')
 
-let electrum;
+let electrumProvider;
 let bc;
 
 hook('Setup', async t => {
@@ -27,7 +27,7 @@ hook('Setup', async t => {
     await bc.mine({ blocks: 101 })
   }
 
-  electrum = await electrumConnect({
+  electrumProvider = await electrumConnect({
     store: new WalletStoreMemory({})
   })
 })
@@ -35,22 +35,22 @@ hook('Setup', async t => {
 
 test('Electrum connected successfully', async t => {
   t.plan(1)
-  t.ok(electrum.isConnected(), 'Client should be connected')
+  t.ok(electrumProvider.isConnected(), 'Client should be connected')
 })
 
 
 test('Electrum subscribes and unsubscribes to blocks', async t => {
-  await electrum.subscribeToBlocks()
+  await electrumProvider.subscribeToBlocks()
   bc.mine({ blocks: 1 })
 
   await new Promise((resolve, reject) => {
-    electrum.once('new-block', async (height) => {
+    electrumProvider.once('new-block', async (height) => {
       try {
         t.plan(3)
         t.pass('Should receive new block notification')
         const info = await bc.getBlockchainInfo()
         t.is(height.height, info.result.blocks, 'Should receive the correct block height')
-        const result = await electrum.unsubscribeFromBlocks()
+        const result = await electrumProvider.unsubscribeFromBlocks()
         t.ok(result, 'Should unsubscribe from blocks notifications')
         resolve();
       } catch (err) {
@@ -65,15 +65,15 @@ test('Electrum subscribes and unsubscribes to address', async t => {
   const to = await bc.getNewAddress()
   const scriptHash = bc.addressToScriptHash(to.result)
 
-  await electrum.subscribeToAddress(scriptHash)
+  await electrumProvider.subscribeToAddress(scriptHash)
   bc.sendToAddress({ address: to.result, amount: 0.1 })
 
   await new Promise((resolve, reject) => {
-    electrum.once('new-tx', async (data) => {
+    electrumProvider.once('new-tx', async (data) => {
       try {
         t.plan(2)
         t.pass('Should receive new transaction notification')
-        const result = await electrum.unsubscribeFromAddress(scriptHash)
+        const result = await electrumProvider.unsubscribeFromAddress(scriptHash)
         t.ok(result, 'Should unsubscribe from scripthash notifications')
         resolve();
       } catch (err) {
@@ -89,7 +89,7 @@ test('Electrum getTransaction returns transaction details', async t => {
   const to = await bc.getNewAddress()
   const tx = await bc.sendToAddress({ address: to.result, amount: amount })
 
-  const electrumTx = await electrum.getTransaction(tx.result)
+  const electrumTx = await electrumProvider.getTransaction(tx.result)
 
   t.plan(1)
   t.is(electrumTx.txid, tx.result, 'Should get single transaction')
@@ -100,13 +100,13 @@ test('Electrum getBalance returns confirmed and unconfirmed balances', async t =
   const amount = 0.1
   const to = await bc.getNewAddress()
   const scriptHash = bc.addressToScriptHash(to.result)
-  await electrum.subscribeToAddress(scriptHash)
+  await electrumProvider.subscribeToAddress(scriptHash)
   await bc.sendToAddress({ address: to.result, amount: amount })
 
   await new Promise((resolve, reject) => {
-    electrum.once('new-tx', async (data) => {
+    electrumProvider.once('new-tx', async (data) => {
       try {
-        const balance = await electrum.getBalance(scriptHash)
+        const balance = await electrumProvider.getBalance(scriptHash)
 
         t.plan(2)
         t.is(balance.confirmed, 0, 'Confirmed balance should be 0')
@@ -117,7 +117,7 @@ test('Electrum getBalance returns confirmed and unconfirmed balances', async t =
         reject(err);
       }
       finally {
-        await electrum.unsubscribeFromAddress(scriptHash)
+        await electrumProvider.unsubscribeFromAddress(scriptHash)
       }
     })
   })
@@ -128,14 +128,14 @@ test('Electrum getAddressHistory returns transactions', async t => {
   const amount = 0.1
   const to = await bc.getNewAddress()
   const scriptHash = bc.addressToScriptHash(to.result)
-  await electrum.subscribeToAddress(scriptHash)
+  await electrumProvider.subscribeToAddress(scriptHash)
   const tx1 = await bc.sendToAddress({ address: to.result, amount: amount })
   const tx2 = await bc.sendToAddress({ address: to.result, amount: amount })
 
   await new Promise((resolve, reject) => {
-    electrum.once('new-tx', async (data) => {
+    electrumProvider.once('new-tx', async (data) => {
       try {
-        const electrumTxs = await electrum.getAddressHistory({}, scriptHash)
+        const electrumTxs = await electrumProvider.getAddressHistory({}, scriptHash)
         const electrumTxIds = electrumTxs.map(tx => tx.txid)
 
         t.plan(2)
@@ -145,7 +145,7 @@ test('Electrum getAddressHistory returns transactions', async t => {
       } catch (err) {
         reject(err);
       } finally {
-        await electrum.unsubscribeFromAddress(scriptHash)
+        await electrumProvider.unsubscribeFromAddress(scriptHash)
       }
     })
   })
@@ -163,8 +163,8 @@ test('Electrum broadcastTransaction successfully', async t => {
     })
   const signedTx = await bc.signRawTransactionWithWallet({ hexstring: rawTx.result })
 
-  const tx = await electrum.broadcastTransaction(signedTx.result.hex)
-  const txDetails = await electrum.getTransaction(tx)
+  const tx = await electrumProvider.broadcastTransaction(signedTx.result.hex)
+  const txDetails = await electrumProvider.getTransaction(tx)
 
   t.plan(2)
   t.ok(tx, 'Signed transaction should be broadcasted')
@@ -173,7 +173,7 @@ test('Electrum broadcastTransaction successfully', async t => {
 
 
 hook('Teardown', async t => {
-  if (electrum.isConnected()) {
-    await electrum.close()
+  if (electrumProvider.isConnected()) {
+    await electrumProvider.close()
   }
 })
