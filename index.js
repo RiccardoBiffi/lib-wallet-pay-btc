@@ -17,7 +17,7 @@ const FeeEstimate = require('./src/fee-estimate.js')
 //const Provider = require('./src/electrum.js')
 const ElectrumProvider = require('./src/electrum.js')
 const BitcoinCoreProvider = require('./src/bitcoin-core.js')
-//todo add Provider class for both electrum and Bitcoin Core. Ask for help
+//todo add Provider abstract class for both Electrum and Bitcoin Core.
 const KeyManager = require('./src/wallet-key-btc.js')
 module.exports = {
   BitcoinPay,
