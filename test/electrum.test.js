@@ -14,14 +14,13 @@
 //
 const { test, solo, skip, hook } = require('brittle')
 const { WalletStoreMemory } = require('lib-wallet-store')
-const { electrumConnect } = require('./test-helpers.js')
-const { bitcoin } = require('../../wallet-lib-test-tools')
+const { electrumConnect, regtestNode } = require('./test-helpers.js')
 
 let electrum;
 let bc;
 
 hook('Setup', async t => {
-  bc = new bitcoin.BitcoinCore({})
+  bc = await regtestNode()
   await bc.init()
   bc.addressToScriptHash
   const balance = (await bc.getBalance()).result
