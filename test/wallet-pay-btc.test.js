@@ -412,7 +412,7 @@ solo('syncTransaction - balance check', async (t) => {
     checked = true
     t.ok(path === payAddr.path, 'first path is checked')
     const { hash, addr } = btcPay.keyManager.pathToScriptHash(path, 'p2wpkh')
-    const eBal = await btcPay.provider._getBalance(hash)
+    const eBal = await btcPay.provider.getBalance(hash)
     let bal
     try {
       bal = await btcPay.getBalance({}, addr.address)
