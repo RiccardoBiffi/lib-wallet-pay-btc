@@ -18,19 +18,18 @@ const { WalletStoreMemory } = require('lib-wallet-store')
 const { bitcoinCoreConnect } = require('./test-helpers.js')
 const { bitcoin } = require('../../wallet-lib-test-tools')
 
-let bitcoinCore;
+let bitcoinCoreProvider;
 let bc;
 
 hook('Setup', async t => {
   bc = new bitcoin.BitcoinCore({})
   await bc.init()
-  bc.addressToScriptHash
   const balance = (await bc.getBalance()).result
   if (balance <= 1) {
     await bc.mine({ blocks: 101 })
   }
 
-  bitcoinCore = await bitcoinCoreConnect({
+  bitcoinCoreProvider = await bitcoinCoreConnect({
     store: new WalletStoreMemory({})
   })
 })
@@ -38,21 +37,21 @@ hook('Setup', async t => {
 
 test('Bitcoin Core connected successfully', async t => {
   t.plan(1)
-  t.ok(bitcoinCore.isConnected(), 'Client should be connected')
+  t.ok(bitcoinCoreProvider.isConnected(), 'Client should be connected')
 })
 
 
 test('Bitcoin Core subscribes and unsubscribes to blocks', async t => {
-  await bitcoinCore.subscribeToBlocks()
+  await bitcoinCoreProvider.subscribeToBlocks()
 
   await new Promise((resolve, reject) => {
-    bitcoinCore.once('new-block', async (height) => {
+    bitcoinCoreProvider.once('new-block', async (height) => {
       try {
         t.plan(3)
         t.pass('Should receive new block notification')
         const info = await bc.getBlockchainInfo()
         t.is(height.height, info.result.blocks, 'Should receive the correct block height')
-        const result = await bitcoinCore.unsubscribeFromBlocks()
+        const result = await bitcoinCoreProvider.unsubscribeFromBlocks()
         t.ok(result, 'Should unsubscribe from blocks notifications')
         resolve();
       } catch (err) {
@@ -62,22 +61,21 @@ test('Bitcoin Core subscribes and unsubscribes to blocks', async t => {
 
     bc.mine({ blocks: 1 })
   })
-
 })
 
 
 test('Bitcoin Core subscribes and unsubscribes to address', async t => {
   const to = await bc.getNewAddress()
 
-  await bitcoinCore.subscribeToAddress(to.result)
+  await bitcoinCoreProvider.subscribeToAddress(to.result)
   await bc.sendToAddress({ address: to.result, amount: 0.1 })
 
   await new Promise((resolve, reject) => {
-    bitcoinCore.once('new-tx', async (data) => {
+    bitcoinCoreProvider.once('new-tx', async (data) => {
       try {
         t.plan(2)
         t.pass('Should receive new transaction notification')
-        const result = await bitcoinCore.unsubscribeFromAddress(to.result)
+        const result = await bitcoinCoreProvider.unsubscribeFromAddress(to.result)
         t.ok(result, 'Should unsubscribe from address notifications')
         resolve();
       } catch (err) {
@@ -93,7 +91,7 @@ test('Bitcoin Core getTransaction returns transaction details', async t => {
   const to = await bc.getNewAddress()
   const tx = await bc.sendToAddress({ address: to.result, amount: amount })
 
-  const bitcoinCoreTx = await bitcoinCore.getTransaction(tx.result)
+  const bitcoinCoreTx = await bitcoinCoreProvider.getTransaction(tx.result)
 
   t.plan(1)
   t.is(bitcoinCoreTx.txid, tx.result, 'Should get single transaction')
@@ -103,13 +101,13 @@ test('Bitcoin Core getTransaction returns transaction details', async t => {
 test('Bitcoin Core getBalance returns confirmed and unconfirmed balances', async t => {
   const amount = 0.1
   const to = await bc.getNewAddress()
-  await bitcoinCore.subscribeToAddress(to.result)
+  await bitcoinCoreProvider.subscribeToAddress(to.result)
   await bc.sendToAddress({ address: to.result, amount: amount })
 
   await new Promise((resolve, reject) => {
-    bitcoinCore.once('new-tx', async (data) => {
+    bitcoinCoreProvider.once('new-tx', async (data) => {
       try {
-        const balance = await bitcoinCore.getBalance(to.result)
+        const balance = await bitcoinCoreProvider.getBalance(to.result)
 
         t.plan(2)
         t.is(balance.confirmed, 0, 'Confirmed balance should be 0')
@@ -120,7 +118,7 @@ test('Bitcoin Core getBalance returns confirmed and unconfirmed balances', async
         reject(err);
       }
       finally {
-        await bitcoinCore.unsubscribeFromAddress(to.result)
+        await bitcoinCoreProvider.unsubscribeFromAddress(to.result)
       }
     })
   })
@@ -130,14 +128,14 @@ test('Bitcoin Core getBalance returns confirmed and unconfirmed balances', async
 test('Bitcoin Core getAddressHistory returns transactions', async t => {
   const amount = 0.1
   const to = await bc.getNewAddress()
-  await bitcoinCore.subscribeToAddress(to.result)
+  await bitcoinCoreProvider.subscribeToAddress(to.result)
   const tx1 = await bc.sendToAddress({ address: to.result, amount: amount })
   const tx2 = await bc.sendToAddress({ address: to.result, amount: amount })
 
   await new Promise((resolve, reject) => {
-    bitcoinCore.once('new-tx', async (data) => {
+    bitcoinCoreProvider.once('new-tx', async (data) => {
       try {
-        const bitcoinCoreTxs = await bitcoinCore.getAddressHistory({}, to.result)
+        const bitcoinCoreTxs = await bitcoinCoreProvider.getAddressHistory({}, to.result)
         const bitcoinCoreTxIds = bitcoinCoreTxs.map(tx => tx.txid)
 
         t.plan(2)
@@ -147,7 +145,7 @@ test('Bitcoin Core getAddressHistory returns transactions', async t => {
       } catch (err) {
         reject(err);
       } finally {
-        await bitcoinCore.unsubscribeFromAddress(to.result)
+        await bitcoinCoreProvider.unsubscribeFromAddress(to.result)
       }
     })
   })
@@ -165,8 +163,8 @@ test('Bitcoin Core broadcastTransaction successfully', async t => {
     })
   const signedTx = await bc.signRawTransactionWithWallet({ hexstring: rawTx.result })
 
-  const tx = await bitcoinCore.broadcastTransaction(signedTx.result.hex)
-  const txDetails = await bitcoinCore.getTransaction(tx)
+  const tx = await bitcoinCoreProvider.broadcastTransaction(signedTx.result.hex)
+  const txDetails = await bitcoinCoreProvider.getTransaction(tx)
 
   t.plan(2)
   t.ok(tx, 'Signed transaction should be broadcasted')
@@ -176,8 +174,8 @@ test('Bitcoin Core broadcastTransaction successfully', async t => {
 //todo fix socket concurrency by executing all tests in sequence
 
 hook('Teardown', async t => {
-  if (bitcoinCore.isConnected()) {
-    await bitcoinCore.close()
+  if (bitcoinCoreProvider.isConnected()) {
+    await bitcoinCoreProvider.close()
     // hack: to stop the zmq listener
     await bc.mine({ blocks: 1 })
   }

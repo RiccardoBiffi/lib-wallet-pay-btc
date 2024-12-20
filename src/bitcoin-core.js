@@ -119,8 +119,8 @@ class BitcoinCore extends EventEmitter {
     this._zmqPort = config.zmqPort || 28334
     this._socket = null
     this._is_socket_open = false
-    this._is_socket_blockhash = false
-    this._is_socket_raw_tx = false
+    this._is_blockhash_subscribed = false
+    this._is_raw_tx_subscribed = false
     this._internal_event = new EventEmitter();
     this._address_subscriptions = []
 
@@ -408,7 +408,7 @@ class BitcoinCore extends EventEmitter {
       this._startSocket()
 
     this._socket.subscribe("hashblock")
-    this._is_socket_blockhash = true;
+    this._is_blockhash_subscribed = true;
     this._internal_event.on("hashblock", this._handleBlockEvent)
   }
 
@@ -420,7 +420,7 @@ class BitcoinCore extends EventEmitter {
   }
 
   async unsubscribeFromBlocks() {
-    this._is_socket_blockhash = false
+    this._is_blockhash_subscribed = false
     this._internal_event.off("hashblock", this._handleBlockEvent)
     return true
   }
@@ -476,7 +476,7 @@ class BitcoinCore extends EventEmitter {
   }
 
   _isSocketUsed() {
-    return this._is_socket_blockhash || this._is_socket_raw_tx
+    return this._is_blockhash_subscribed || this._is_raw_tx_subscribed
   }
 
   //todo change input to scripthash
@@ -490,7 +490,7 @@ class BitcoinCore extends EventEmitter {
     }
 
     this._socket.subscribe("rawtx")
-    this._is_socket_raw_tx = true
+    this._is_raw_tx_subscribed = true
     this._internal_event.on("rawtx", this._handleTxEvent)
   }
 
@@ -508,7 +508,7 @@ class BitcoinCore extends EventEmitter {
   async unsubscribeFromAddress(address) {
     this._address_subscriptions = this._address_subscriptions.filter(a => a !== address)
     if (this._address_subscriptions.length === 0) {
-      this._is_socket_raw_tx = false
+      this._is_raw_tx_subscribed = false
       this._internal_event.off("rawtx", this._handleTxEvent)
     }
     return true
