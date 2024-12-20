@@ -1,4 +1,14 @@
 {
-  "electrum_port" : 8001,
-  "electrum_host" : "127.0.0.1"
+  "electrum": {
+    "host": "127.0.0.1",
+    "port": 50001
+  },
+  "bitcoinCore": {
+    "host": "127.0.0.1",
+    "port": 18443,
+    "user": "user",
+    "pass": "password",
+    "wallet": "main.dat",
+    "zmqPort": 28334
+  }
 }
