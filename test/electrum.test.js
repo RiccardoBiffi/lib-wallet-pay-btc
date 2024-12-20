@@ -22,7 +22,6 @@ let bc;
 hook('Setup', async t => {
   bc = await regtestNode()
   await bc.init()
-  bc.addressToScriptHash
   const balance = (await bc.getBalance()).result
   if (balance <= 1) {
     await bc.mine({ blocks: 101 })
@@ -37,7 +36,6 @@ hook('Setup', async t => {
 test('Electrum connected successfully', async t => {
   t.plan(1)
   t.ok(electrum.isConnected(), 'Client should be connected')
-
 })
 
 
